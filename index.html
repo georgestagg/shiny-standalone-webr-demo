@@ -1,0 +1,37 @@
+<html>
+  <head>
+      <title>Standalone Shiny on webR demo</title>
+      <style>
+        body {
+          font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;
+        }
+        #console {
+          font-size: 16px;
+          z-index: 1;
+          border-top: 2px solid black;
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height:20%;
+          overflow-y: scroll;
+          overflow-wrap: anywhere;
+        }
+      </style>
+  </head>
+  <body>
+    <div id="loading">
+      <h1>Please wait, webR is loading</h1>
+      <p>This can take a while...</p>
+    </div>
+
+    <div id="console">
+      <pre style="white-space: pre-wrap;">
+        <code id="out">
+Loading webR...
+        </code>
+      </pre>
+    </div>
+  <script src="shiny.js"></script>
+  </body>
+</html>
