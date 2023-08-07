@@ -17,53 +17,74 @@ function uuid() {
   );
 }
 
+// Modify a response so that the required CORP/COOP/COEP headers are in place
+// for cross-origin isolation.
+function addCoiHeaders(resp) {
+  const headers = new Headers(resp.headers);
+  headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+  headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+  headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  return new Response(resp.body, {
+    status: resp.status,
+    statusText: resp.statusText,
+    headers,
+  });
+}
+
 const handleInstall = () => {
   console.log('Service worker installed');
   self.skipWaiting();
 };
 
-const handleActivate = () => {
+const handleActivate = (event) => {
   console.log('Service worker activated');
-  return self.clients.claim();
+  event.waitUntil(self.clients.claim());
 };
 
 const handleFetch = async (event) => {
   const wasmMatch = /\/__wasm__\/([0-9a-fA-F-]{36})/.exec(event.request.url);
-  if (!wasmMatch) {
+  if (wasmMatch) {
+    const wasmRequest = (async () => {
+      const client = await self.clients.get(wasmMatch[1]);
+      const id = uuid();
+      requests[id] = promiseHandles();
+
+      client.postMessage({
+        type: "wasm-http-fetch",
+        uuid: id,
+        url: event.request.url,
+        method: event.request.method,
+        body: event.request.body,
+      });
+
+      const response = await requests[id].promise;
+      const headers = Object.assign(
+        { "Cross-Origin-Embedder-Policy": "require-corp" },
+        Object.fromEntries(
+          [...Array(response.headers.names.length).keys()].map((i) => {
+            return [response.headers.names[i], response.headers.values[i].values[0]];
+          })
+        )
+      );
+
+      const body = response.body.type === 'raw'
+        ? new Uint8Array(response.body.values)
+        : response.body.values[0];
+      return new Response( body, { headers } );
+    })();
+
+    event.waitUntil(wasmRequest);
+    event.respondWith(wasmRequest);
     return;
   }
 
-  const wasmRequest = (async () => {
-    const client = await self.clients.get(wasmMatch[1]);
-    const id = uuid();
-    requests[id] = promiseHandles();
-  
-    client.postMessage({
-      type: "wasm-http-fetch",
-      uuid: id,
-      url: event.request.url,
-      method: event.request.method,
-      body: event.request.body,
-    });
+  // Don't add COI headers to requests for external origins
+  const url = new URL(event.request.url);
+  if (self.location.origin !== url.origin) return;
 
-    const response = await requests[id].promise;
-    const headers = Object.assign(
-      { "Cross-Origin-Embedder-Policy": "require-corp" },
-      Object.fromEntries(
-        [...Array(response.headers.names.length).keys()].map((i) => {
-          return [response.headers.names[i], response.headers.values[i].values[0]];
-        })
-      )
-    );
-
-    const body = response.body.type === 'raw'
-      ? new Uint8Array(response.body.values)
-      : response.body.values[0];
-    return new Response( body, { headers } );
-  })();
-
-  event.waitUntil(wasmRequest);
-  event.respondWith(wasmRequest);
+  event.respondWith((async () => {
+    return addCoiHeaders(await fetch(event.request));
+  })());
 };
 
 const handleMessage = async (event) => {

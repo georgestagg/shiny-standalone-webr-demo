@@ -1,3 +1,29 @@
+// Each client session has a unique ID
+let clientId;
+
+// Register service worker
+navigator.serviceWorker.register('./httpuv-serviceworker.js').then(async (registration)=>{
+  await navigator.serviceWorker.ready;
+
+  // If the service worker is ready, but not in control, reload the main page
+  if (!navigator.serviceWorker.controller) {
+    window.location.reload();
+  }
+
+  // Register with the service worker and get our client ID
+  clientId = await new Promise((resolve) => {
+    navigator.serviceWorker.addEventListener('message', function listener(event) {
+      if (event.data.type === 'registration-successful') {
+        navigator.serviceWorker.removeEventListener('message', listener);
+        resolve(event.data.clientId);
+      }
+    });
+    registration.active.postMessage({type: "register-client"});
+  });
+  console.log('I am client: ', clientId);
+  console.log("serviceworker proxy is ready");
+});
+
 import('https://webr.r-wasm.org/latest/webr.mjs').then(async ({ WebR }) => {
   let webSocketHandleCounter = 0;
   let webSocketRefs = {};
@@ -89,14 +115,6 @@ import('https://webr.r-wasm.org/latest/webr.mjs').then(async ({ WebR }) => {
     await webR.FS.writeFile(path, new Uint8Array(data));
   }
 
-  // Register service worker
-  const registration = await navigator.serviceWorker.register('./httpuv-serviceworker.js');
-  await navigator.serviceWorker.ready;
-  window.addEventListener('beforeunload', async () => {
-    await registration.unregister();
-  });
-  console.log("service worker registered");
-
   // Setup shiny app on webR VFS
   await webR.FS.mkdir('/home/web_user/app');
   await webR.FS.mkdir('/home/web_user/app/www');
@@ -132,19 +150,6 @@ import('https://webr.r-wasm.org/latest/webr.mjs').then(async ({ WebR }) => {
       `);
     }
   });
-
-  // Register with service worker and get our client ID
-  const clientId = await new Promise((resolve) => {
-    navigator.serviceWorker.addEventListener('message', function listener(event) {
-      if (event.data.type === 'registration-successful') {
-        navigator.serviceWorker.removeEventListener('message', listener);
-        resolve(event.data.clientId);
-      }
-    });
-    registration.active.postMessage({type: "register-client"});
-  });
-  console.log('I am client: ', clientId);
-  console.log("serviceworker proxy is ready");
 
   // Load the WASM httpuv hosted page in an iframe
   let iframe = document.createElement('iframe');
