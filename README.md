@@ -2,6 +2,8 @@
 
 This repo demonstrates the deployment of a Shiny app running on webR in the browser, hosting the app bundle via Netlify. The resulting app can be seen at https://shiny-standalone-webr-demo.netlify.app.
 
+A version of the demo hosted on GitHub Pages is also available at https://georgestagg.github.io/shiny-standalone-webr-demo/.
+
 The webR binaries are loaded through the public CDN hosted at https://webr.r-wasm.org. A pre-compiled webR package repository (containing various R package binaries built for WebAssembly) is additionally included as part of the deployment in the `repo` directory. The packages, including Shiny, are loaded into the page once webR has been initialised. This package repository has been built using the experimental `webr-repo` scripts at https://github.com/r-wasm/webr-repo.
 
 ## How it works
@@ -22,7 +24,7 @@ Note: There are other similar ways to orchestrate this communication process. Fo
 
 Since this technique depends on loading a service worker into the page, the standard webR [service worker communication channel](https://docs.r-wasm.org/webr/latest/communication.html) cannot be used. This is because a web page is not able to use multiple service worker scripts at the same time. The page should be served with [cross-origin isolation HTTP headers](https://docs.r-wasm.org/webr/latest/serving.html) set, so that the default (and recommended) shared array buffer channel can be used instead. In this demo, the headers are configured for hosting via Netlify in the file `netlify.toml`.
 
-If use of the webR service worker communication channel is strictly required, it is possible to do so by using a custom `webr-serviceworker.js` script when loading webR. The custom service worker should first load the usual webR service worker script with `importScripts`, and then include additional handling for httpuv traffic by registering further handlers for `fetch` and `message` events using `self.addEventListener`. Note that this demo does *not* include such an additional setup and will only work when served with [the required cross-origin isolation headers](https://docs.r-wasm.org/webr/latest/serving.html).
+In hosting situations where it is not possible to set the required HTTP headers for Cross-Origin Isolation (for example, when hosting with GitHub Pages), the headers can alternatively be injected by the service worker instead. The service worker script in this repo has been configured to add the required HTTP headers to all responses from the same origin as the script itself, ensuring that webR is still able to be used in such situations.
 
 ## A short warning
 
