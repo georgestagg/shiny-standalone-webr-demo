@@ -24,7 +24,7 @@ navigator.serviceWorker.register('./httpuv-serviceworker.js').then(async (regist
   console.log("serviceworker proxy is ready");
 });
 
-import('https://webr.r-wasm.org/latest/webr.mjs').then(async ({ WebR }) => {
+import('https://webr.r-wasm.org/v0.2.2/webr.mjs').then(async ({ WebR }) => {
   let webSocketHandleCounter = 0;
   let webSocketRefs = {};
 
@@ -122,11 +122,12 @@ import('https://webr.r-wasm.org/latest/webr.mjs').then(async ({ WebR }) => {
   await fetchToWebR('app/server.R', '/home/web_user/app/server.R');
 
   // Install and run shiny
-  await webR.evalRVoid(`webr::install("shiny", repos="${window.location.href}/repo/")`);
+  await webR.evalRVoid(`webr::mount("/shiny", "${window.location.href}/image/library.data")`);
   webR.writeConsole(`
+    .libPaths(c("/shiny", .libPaths()))
     library(shiny)
     options(shiny.trace = TRUE)
-    runApp('app', display.mode = 'showcase')
+    runApp('app', display.mode = 'showcase', launch.browser = FALSE)
   `);
 
   // Setup listener for service worker messages
